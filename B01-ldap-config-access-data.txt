@@ -1,0 +1,28 @@
+to dn.subtree="dc=myserver,o=home"
+    by dn.base="uid=configurator,ou=operators,dc=myserver,o=home" manage stop
+    by * break
+
+to dn.subtree="ou=operators,dc=myserver,o=home"
+    by self write stop
+    by * auth stop
+
+to dn.subtree="ou=accounts,dc=myserver,o=home"
+    attrs=userPassword
+    by self write stop
+    by * auth stop
+
+to dn.subtree="ou=accounts,dc=myserver,o=home"
+    attrs=sn,givenName,mail
+    by self write stop
+    by dn.subtree="ou=persons,ou=accounts,dc=myserver,o=home" read stop
+    by * break
+
+to dn.subtree="ou=manages,ou=accounts,dc=myserver,o=home"
+    by self write stop
+    by * auth stop
+
+to dn.subtree="ou=persons,ou=accounts,dc=myserver,o=home"
+    by dn.subtree="ou=persons,ou=accounts,dc=myserver,o=home" read stop
+    by * break
+
+to * by * read
