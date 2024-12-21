@@ -1,0 +1,71 @@
+name: test-forgejo-ldap-group
+services:
+  ldap:
+    image: bitnami/openldap:2.6
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - openldap-app-container
+    ports:
+      - "389:389"
+    volumes:
+      - type: bind
+        source: ./assets/ldifs
+        target: /ldifs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: volume
+        source: openldap-app-data
+        target: /bitnami/openldap
+    environment:
+      - TZ=Asia/Tokyo
+      - LDAP_PORT_NUMBER=389
+      - LDAP_ROOT=dc=myserver,o=home
+      - LDAP_ADMIN_USERNAME=admin
+      - LDAP_ADMIN_PASSWORD=admin-pass
+      - LDAP_CONFIG_ADMIN_ENABLED=yes
+      - LDAP_CONFIG_ADMIN_USERNAME=config-admin
+      - LDAP_CONFIG_ADMIN_PASSWORD=config-admin-pass
+      - LDAP_CUSTOM_LDIF_DIR=/ldifs
+
+  app:
+    image: codeberg.org/forgejo/forgejo:9
+    restart: unless-stopped
+    depends_on:
+      ldap:
+        condition: service_started
+    networks:
+      default:
+        aliases:
+          - forgejo-app-container
+    ports:
+      - "3000:3000"
+      - "2022:22"
+    healthcheck:
+      test: curl -f -s http://localhost:3000 || exit 1
+      start_period: 60s
+      start_interval: 3s
+      timeout: 5s
+      interval: 300s
+      retries: 3
+    volumes:
+      - type: volume
+        source: forgejo-app-data
+        target: /data
+    environment:
+      - TZ=JST-9
+      - USER_UID=1000
+      - USER_GID=1000
+      - FORGEJO__database__DB_TYPE=sqlite3
+      - FORGEJO__cron_0x2E_update_checker__ENABLED=false
+      - FORGEJO__server__SSH_PORT=2022
+      - FORGEJO__migrations__ALLOW_LOCALNETWORKS=true
+      - FORGEJO__quota__ENABLED=true
+      - FORGEJO__quota__DEFAULT_GROUPS=default-quota
+      - FORGEJO__quota_0x2E_default__TOTAL=8G
+
+volumes:
+  openldap-app-data:
+  forgejo-app-data:

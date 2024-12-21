@@ -1,0 +1,49 @@
+dn: dc=myserver,o=home
+objectClass: dcObject
+objectClass: organization
+dc: myserver
+o: home
+
+dn: ou=operators,dc=myserver,o=home
+objectClass: organizationalUnit
+ou: operators
+
+dn: uid=configurator,ou=operators,dc=myserver,o=home
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: configurator
+cn: Configurator
+sn: Configurator
+uidNumber: 1001
+gidNumber: 1001
+userPassword: {SSHA256}6fEA8IEH0R8TefwYiW1yApXYG1U+A+mQwFE1kgfg3J9VvRJh
+homeDirectory: /home/configurator
+
+dn: uid=authenticator,ou=operators,dc=myserver,o=home
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: authenticator
+cn: Authenticator
+sn: Authenticator
+uidNumber: 1002
+gidNumber: 1002
+userPassword: {SSHA256}ubZ5ZLHGdITb0QSSYxkp9i3Nb2wTAUkd9gYEHytJ1BlHWNrm
+homeDirectory: /home/authenticator
+
+dn: ou=accounts,dc=myserver,o=home
+objectClass: organizationalUnit
+ou: accounts
+
+dn: ou=persons,ou=accounts,dc=myserver,o=home
+objectClass: organizationalUnit
+ou: persons
+
+dn: ou=manages,ou=accounts,dc=myserver,o=home
+objectClass: organizationalUnit
+ou: manages
+
+dn: ou=groups,dc=myserver,o=home
+objectClass: organizationalUnit
+ou: groups

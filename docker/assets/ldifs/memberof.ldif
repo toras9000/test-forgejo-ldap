@@ -1,0 +1,17 @@
+dn: cn=module,cn=config
+cn: module
+objectClass: olcModuleList
+olcModulePath: /opt/bitnami/openldap/lib/openldap
+olcModuleLoad: memberof.so
+
+dn: olcOverlay=memberof,olcDatabase={2}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcMemberOfConfig
+olcOverlay: memberof
+olcMemberOfDN: dc=myserver,o=home
+olcMemberOfDangling: ignore
+olcMemberOfDanglingError: 80
+olcMemberOfRefInt: FALSE
+olcMemberOfGroupOC: groupOfNames
+olcMemberOfMemberAD: member
+olcMemberOfMemberOfAD: memberOf
