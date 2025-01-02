@@ -21,7 +21,7 @@ var settings = new
     {
         new("Lestaly",                               "0.69.0"),
         new("Kokuban",                               "0.2.0"),
-        new("AngleSharp",                            "1.1.2"),
+        new("AngleSharp",                            "1.2.0"),
         new("System.DirectoryServices",              "9.0.0"),
         new("System.DirectoryServices.Protocols",    "9.0.0"),
     },
