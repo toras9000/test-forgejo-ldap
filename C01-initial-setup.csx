@@ -1,5 +1,5 @@
-#r "nuget: AngleSharp, 1.2.0"
-#r "nuget: Lestaly, 0.69.0"
+#r "nuget: AngleSharp, 1.3.0"
+#r "nuget: Lestaly, 0.79.0"
 #r "nuget: Kokuban, 0.2.0"
 #nullable enable
 using System.Net;
@@ -29,8 +29,11 @@ var settings = new
     },
 };
 
-await Paved.RunAsync(config: c => c.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
+    using var signal = new SignalCancellationPeriod();
+    using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
+
     // Show service link
     WriteLine();
     WriteLine("Service URL");
@@ -40,17 +43,16 @@ await Paved.RunAsync(config: c => c.AnyPause(), action: async () =>
     // Determine initial startup (whether the setup form is displayed)
     WriteLine();
     WriteLine("Check initialization status ...");
-    var requester = new DefaultHttpRequester();
-    requester.Timeout = TimeSpan.FromSeconds(3 * 60);
+    var requester = new DefaultHttpRequester() { Timeout = TimeSpan.FromSeconds(3 * 60) };
     var config = Configuration.Default.With(requester).WithDefaultLoader();
     var context = BrowsingContext.New(config);
     var document = default(IDocument);
-    using (var breaker = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+    using (var breaker = signal.Token.CreateLink(TimeSpan.FromSeconds(10)))
     {
         while (document == null || document.Source.Length <= 0)
         {
-            document = await context.OpenAsync(settings.ServiceURL);
-            if (document.StatusCode != HttpStatusCode.OK) throw new PavedMessageException("Cannot load page", PavedMessageKind.Warning);
+            if (document != null) await Task.Delay(TimeSpan.FromMilliseconds(200));
+            document = await context.OpenAsync(settings.ServiceURL, signal.Token);
         }
     }
     var container = document.QuerySelector<IHtmlDivElement>(".install-config-container");

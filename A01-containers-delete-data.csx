@@ -1,12 +1,12 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Lestaly, 0.69.0"
+#r "nuget: Lestaly, 0.79.0"
 #nullable enable
 using Lestaly;
 using Lestaly.Cx;
 
-await Paved.RunAsync(config: c => c.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
     WriteLine("Stop service & delete volume ...");
     var composeFile = ThisSource.RelativeFile("./docker/compose.yml");
-    await "docker".args("compose", "--file", composeFile.FullName, "down", "--remove-orphans", "--volumes").result().success();
+    await "docker".args("compose", "--file", composeFile, "down", "--remove-orphans", "--volumes").result().success();
 });

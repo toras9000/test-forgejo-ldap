@@ -1,7 +1,6 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Lestaly, 0.69.0"
+#r "nuget: Lestaly, 0.79.0"
 #r "nuget: Kokuban, 0.2.0"
-#load ".directory-service-extensions.csx"
 #nullable enable
 using System.DirectoryServices.Protocols;
 using System.Net;
@@ -79,8 +78,11 @@ record DefineUser(string Uid, string? Cn = default, string? Sn = default, string
 };
 record DefineGroup(string Group, DefineUser[] Members);
 
-return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
+    using var signal = new SignalCancellationPeriod();
+    using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
+
     // Bind to LDAP server
     WriteLine("Bind to LDAP server");
     var server = new LdapDirectoryIdentifier(settings.Server.Host, settings.Server.Port);
@@ -97,7 +99,7 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     {
         WriteLine($".. User={user.Uid}");
         var userDn = user.FullDn(settings.Directory.UserUnitDn);
-        var userEntry = await ldap.GetEntryOrDefaultAsync(userDn);
+        var userEntry = await ldap.GetEntryOrDefaultAsync(userDn, signal.Token);
         if (userEntry != null)
         {
             WriteLine($".... Alredy exists");
@@ -111,8 +113,8 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
                 new("cn", user.Cn ?? user.Uid),
                 new("sn", user.Sn ?? user.Uid),
                 new("mail", user.Mail ?? $"{user.Uid}@example.com"),
-                new("userPassword", MakeHashPassword(user.Password ?? user.Uid)),
-            ]);
+                new("userPassword", LdapExtensions.MakePasswordHash.SSHA256(user.Password ?? user.Uid)),
+            ], signal.Token);
             WriteLine(Chalk.Green[$".... Created: {userDn}"]);
         }
         catch (Exception ex)
@@ -126,7 +128,7 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     {
         WriteLine($".. Group={define.Group}");
         var groupDn = $"cn={define.Group},{settings.Directory.GroupUnitDn}";
-        var groupEntry = await ldap.GetEntryOrDefaultAsync(groupDn);
+        var groupEntry = await ldap.GetEntryOrDefaultAsync(groupDn, signal.Token);
         if (groupEntry != null)
         {
             WriteLine($".... Alredy exists");
@@ -138,9 +140,9 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
             await ldap.CreateEntryAsync(groupDn,
             [
                 new("objectClass", "groupOfNames"),
-                    new("cn", define.Group),
-                    new("member", members),
-                ]);
+                new("cn", define.Group),
+                new("member", members),
+            ], signal.Token);
             WriteLine(Chalk.Green[$".... Created: {groupDn}"]);
         }
         catch (Exception ex)
@@ -149,15 +151,3 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
         }
     }
 });
-
-string MakeHashPassword(string input)
-{
-    var salt = new byte[4];
-    Random.Shared.NextBytes(salt);
-    var source = Encoding.UTF8.GetBytes(input);
-    var hashed = SHA256.HashData(source.Concat(salt).ToArray());
-    var encoded = Convert.ToBase64String(hashed.Concat(salt).ToArray());
-    var value = $"{{SSHA256}}{encoded}";
-
-    return value;
-}

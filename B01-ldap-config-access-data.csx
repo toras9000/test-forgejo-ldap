@@ -1,7 +1,6 @@
 #!/usr/bin/env dotnet-script
-#r "nuget: Lestaly, 0.69.0"
+#r "nuget: Lestaly, 0.79.0"
 #r "nuget: Kokuban, 0.2.0"
-#load ".directory-service-extensions.csx"
 #nullable enable
 using System.DirectoryServices.Protocols;
 using System.Net;
@@ -38,8 +37,11 @@ var settings = new
 
 };
 
-return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
+    using var signal = new SignalCancellationPeriod();
+    using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
+
     // Read the access definition to be added
     var accessDefines = settings.Server.AccessDefineFile.EnumerateTextBlocks().ToArray();
 
@@ -60,7 +62,7 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     searchReq.Scope = SearchScope.Base;
 
     // Request a search.
-    var searchRsp = await ldap.SendRequestAsync(searchReq);
+    var searchRsp = await ldap.SendRequestAsync(searchReq, cancelToken: signal.Token);
     if (searchRsp.ResultCode != 0) throw new PavedMessageException($"failed to search: {searchRsp.ErrorMessage}");
     var searchResult = searchRsp as SearchResponse ?? throw new PavedMessageException("unexpected result");
 
@@ -72,36 +74,14 @@ return await Paved.RunAsync(config: o => o.AnyPause(), action: async () =>
     if (0 < accessExists.Length)
     {
         WriteLine("Delete all access");
-        var attrModify = new DirectoryAttributeModification();
-        attrModify.Operation = DirectoryAttributeOperation.Delete;
-        attrModify.Name = "olcAccess";
-        foreach (var access in accessDefines)
-        {
-            attrModify.Add(access);
-        }
-
-        var accessDelete = new ModifyRequest();
-        accessDelete.DistinguishedName = settings.Server.ConfigDn;
-        accessDelete.Modifications.Add(attrModify);
-        var deleteRsp = await ldap.SendRequestAsync(accessDelete);
+        var deleteRsp = await ldap.DeleteAttributeAsync(settings.Server.ConfigDn, "olcAccess", accessDefines, signal.Token);
         if (deleteRsp.ResultCode != 0) throw new PavedMessageException($"failed to modify: {deleteRsp.ErrorMessage}");
     }
 
     // Add defined access.
     WriteLine("Request to add access.");
     {
-        var attrModify = new DirectoryAttributeModification();
-        attrModify.Operation = DirectoryAttributeOperation.Add;
-        attrModify.Name = "olcAccess";
-        foreach (var access in accessDefines)
-        {
-            attrModify.Add(access);
-        }
-
-        var accessAdd = new ModifyRequest();
-        accessAdd.DistinguishedName = settings.Server.ConfigDn;
-        accessAdd.Modifications.Add(attrModify);
-        var modifyRsp = await ldap.SendRequestAsync(accessAdd);
+        var modifyRsp = await ldap.AddAttributeAsync(settings.Server.ConfigDn, "olcAccess", accessDefines, signal.Token);
         if (modifyRsp.ResultCode != 0) throw new PavedMessageException($"failed to modify: {modifyRsp.ErrorMessage}");
     }
 

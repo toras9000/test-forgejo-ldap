@@ -1,5 +1,5 @@
-#r "nuget: AngleSharp, 1.2.0"
-#r "nuget: Lestaly, 0.69.0"
+#r "nuget: AngleSharp, 1.3.0"
+#r "nuget: Lestaly, 0.79.0"
 #r "nuget: Kokuban, 0.2.0"
 #nullable enable
 using System.Net;
@@ -41,21 +41,24 @@ enum ScopeAccess
     write,
 }
 
-await Paved.RunAsync(config: c => c.AnyPause(), action: async () =>
+return await Paved.ProceedAsync(async () =>
 {
+    using var signal = new SignalCancellationPeriod();
+    using var outenc = ConsoleWig.OutputEncodingPeriod(Encoding.UTF8);
+
     WriteLine("Generate token");
     var apiToken = await "docker".args(
-        "compose", "--file", settings.ComposeFile.FullName, "exec", "-u", "1000", "app",
+        "compose", "--file", settings.ComposeFile, "exec", "-u", "1000", "app",
         "forgejo", "admin", "user", "generate-access-token",
-        "--token-name", settings.Token.Name,
-        "--username", settings.Token.User,
-        "--scopes", settings.Token.Scopes.Select(s => $"{s.Access}:{s.Name}").JoinString(","),
-        "--raw"
-    ).silent().result().success().output();
+            "--token-name", settings.Token.Name,
+            "--username", settings.Token.User,
+            "--scopes", settings.Token.Scopes.Select(s => $"{s.Access}:{s.Name}").JoinString(","),
+            "--raw"
+    ).silent().result().success().output(trim: true);
 
     WriteLine("Save token");
     var scrambler = settings.TokenFile.CreateScrambler(context: settings.TokenFile.FullName);
-    await scrambler.ScrambleTextAsync(apiToken.Trim());
+    await scrambler.ScrambleTextAsync(apiToken, cancelToken: signal.Token);
 
     WriteLine("API token generation completed.");
 });
